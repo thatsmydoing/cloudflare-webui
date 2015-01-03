@@ -1,0 +1,55 @@
+.table tbody>tr>td{
+	vertical-align: middle;
+}
+.record-type span {
+	margin: 0px 2px;
+	padding: 5px 10px;
+	display: block;
+	background: black;
+	color: white;
+	font-weight: bold;
+}
+.record-type span.CNAME {
+	background: orange;
+}
+.record-type span.MX {
+	background: magenta;
+}
+.record-type span.TXT {
+	background: limegreen;
+}
+.record-type span.SPF {
+	background: teal;
+}
+.record-type span.SRV {
+	background: olive;
+}
+.table {
+	table-layout: fixed;
+}
+.table .type {
+	width: 80px;
+}
+.table .name {
+	width: 200px;
+}
+.table .actions {
+	width: 120px;
+}
+.table .proxy {
+	width: 60px;
+}
+.table .value {
+	overflow: hidden;
+	white-space: nowrap;
+	width: 280px;
+}
+#records .table input {
+	width: 100%;
+}
+#records .table tr.saving {
+	background: lightyellow;
+}
+.nav.nav-tabs {
+	margin-bottom: 10px;
+}
