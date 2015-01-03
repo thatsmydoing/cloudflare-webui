@@ -1,4 +1,3 @@
-var cloudflare = require('../cloudflare');
 var React = require('react');
 
 var Domain = React.createClass({
@@ -6,33 +5,32 @@ var Domain = React.createClass({
     var className = this.props.active ? 'active' : '';
     return (
       <li role="presentation" className={className}>
-        <a href={'/'+this.props.data.zone_name}>{this.props.data.zone_name}</a>
+        <a href={'/'+this.props.data.zone_name.val()}>{this.props.data.zone_name.val()}</a>
       </li>
     );
   }
 });
 
 var DomainList = React.createClass({
-  getInitialState: function() {
-    return {domains: []};
-  },
-  componentDidMount: function() {
-    cloudflare.domains().then(function(data) {
-      this.setState({domains: data.response.zones.objs});
-    }.bind(this));
-  },
   render: function() {
     var currDomain = this.props.currentDomain;
-    var domains = this.state.domains.map(function(domain) {
-      var active = currDomain === domain.zone_name;
-      return <Domain key={domain.zone_id} data={domain} active={active} />
+    var domains = this.props.domains.map(function(domain) {
+      var active = currDomain === domain.zone_name.val();
+      return <Domain key={domain.zone_id.val()} data={domain} active={active} />
     });
+
     return (
       <div>
         <h1>Domains</h1>
-        <ul className="nav nav-pills nav-stacked">
-          {domains}
-        </ul>
+        { domains.length === 0 &&
+          <div className="alert alert-info">Loading...</div>
+        }
+
+        { domains.length > 0 &&
+          <ul className="nav nav-pills nav-stacked">
+            {domains}
+          </ul>
+        }
       </div>
     );
   }

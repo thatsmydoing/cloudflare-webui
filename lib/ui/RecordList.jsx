@@ -1,11 +1,12 @@
-var cloudflare = require('../cloudflare');
+var DomainStore = require('../stores').Domains;
 var React = require('react');
 
 var CloudActive = React.createClass({
   render: function() {
     var record = this.props.record;
-    if(record.type === 'A' || record.type === 'AAAA' || record.type === 'CNAME') {
-      var active = record.service_mode === '1';
+    var type = record.type.val();
+    if(type === 'A' || type === 'AAAA' || type === 'CNAME') {
+      var active = record.service_mode.val() === '1';
       if(active) {
         return <button className='btn btn-warning' onClick={this.props.onClick}>On</button>
       }
@@ -24,7 +25,7 @@ var RecordCreate = React.createClass({
   },
   types: ['A', 'AAAA', 'CNAME'],
   finishSave: function(promise) {
-    promise.then(this.props.onEdit).then(function() {
+    promise.then(function() {
       this.setState({saving: false});
       this.reset();
     }.bind(this));
@@ -41,7 +42,7 @@ var RecordCreate = React.createClass({
       name: this.refs.name.getDOMNode().value.trim(),
       content: this.refs.value.getDOMNode().value.trim()
     };
-    this.finishSave(cloudflare.record_add(this.props.domain, newRecord));
+    this.finishSave(DomainStore.add(this.props.domain, newRecord));
   },
   render: function() {
     var className = this.state.saving ? 'saving' : '';
@@ -79,40 +80,40 @@ var Record = React.createClass({
     this.setState({state: 'view'});
   },
   finishSave: function(promise) {
-    promise.then(this.props.onEdit).then(function() {
+    promise.then(function() {
       this.setState({state: 'view', saving: false});
     }.bind(this));
   },
   commitDelete: function() {
     this.setState({saving: true});
     var record = this.props.record;
-    this.finishSave(cloudflare.record_delete(record.zone_name, record.rec_id));
+    this.finishSave(DomainStore.remove(record.zone_name.val(), record.rec_id.val()));
   },
   commitEdit: function() {
     this.setState({saving: true});
     var record = this.props.record;
     var newRecord = {
-      id: record.rec_id,
-      type: record.type,
+      id: record.rec_id.val(),
+      type: record.type.val(),
       name: this.refs.name.getDOMNode().value.trim(),
       content: this.refs.value.getDOMNode().value.trim()
     };
-    if(record.service_mode) {
-      newRecord.service_mode = record.service_mode;
+    if(record.service_mode.val()) {
+      newRecord.service_mode = record.service_mode.val();
     }
-    this.finishSave(cloudflare.record_edit(record.zone_name, newRecord));
+    this.finishSave(DomainStore.edit(record.zone_name.val(), newRecord));
   },
   toggleProxy: function() {
     this.setState({saving: true});
     var record = this.props.record;
     var newRecord = {
-      id: record.rec_id,
-      type: record.type,
-      name: record.name,
-      content: record.content,
-      service_mode: record.service_mode === "1" ? "0" : "1"
+      id: record.rec_id.val(),
+      type: record.type.val(),
+      name: record.name.val(),
+      content: record.content.val(),
+      service_mode: record.service_mode.val() === "1" ? "0" : "1"
     };
-    this.finishSave(cloudflare.record_edit(record.zone_name, newRecord));
+    this.finishSave(DomainStore.edit(record.zone_name.val(), newRecord));
   },
   render: function() {
     var record = this.props.record;
@@ -120,9 +121,9 @@ var Record = React.createClass({
     if(this.state.state === 'edit') {
       return (
         <tr className={className}>
-          <td className="record-type"><span className={record.type}>{record.type}</span></td>
-          <td><input type="text" ref="name" defaultValue={record.display_name} /></td>
-          <td><input type="text" ref="value" defaultValue={record.display_content} /></td>
+          <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
+          <td><input type="text" ref="name" defaultValue={record.display_name.val()} /></td>
+          <td><input type="text" ref="value" defaultValue={record.display_content.val()} /></td>
           <td>
             <a onClick={this.cancelEdit}>Cancel</a>
           </td>
@@ -135,9 +136,9 @@ var Record = React.createClass({
     else if(this.state.state === 'delete') {
       return (
         <tr className={className}>
-          <td className="record-type"><span className={record.type}>{record.type}</span></td>
-          <td><strong>{record.display_name}</strong></td>
-          <td>{record.display_content}</td>
+          <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
+          <td><strong>{record.display_name.val()}</strong></td>
+          <td>{record.display_content.val()}</td>
           <td>
             <a onClick={this.cancelEdit}>Cancel</a>
           </td>
@@ -150,9 +151,9 @@ var Record = React.createClass({
     else {
       return (
         <tr className={className}>
-          <td className="record-type"><span className={record.type}>{record.type}</span></td>
-          <td><strong>{record.display_name}</strong></td>
-          <td className="value">{record.display_content}</td>
+          <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
+          <td><strong>{record.display_name.val()}</strong></td>
+          <td className="value">{record.display_content.val()}</td>
           <td><CloudActive record={record} onClick={this.toggleProxy} /></td>
           <td className="actions">
             <button className="btn btn-primary" onClick={this.setEditing}>Edit</button>
@@ -165,30 +166,29 @@ var Record = React.createClass({
   }
 });
 var RecordList = React.createClass({
-  getInitialState: function() {
-    return {records: []};
-  },
-  componentDidMount: function() {
-    this.reload();
-  },
-  componentWillReceiveProps: function(nextProps) {
-    if(nextProps.domain != this.props.domain) {
-      this.setState({records: []});
-      this.reload(nextProps);
-    }
-  },
-  reload: function(props) {
-    if(!props) {
-      props = this.props;
-    }
-    return cloudflare.records(props.domain).then(function(data) {
-      this.setState({records: data.response.recs.objs});
-    }.bind(this));
-  },
   render: function() {
-    var records = this.state.records.map(function(record) {
-      return <Record key={record.rec_id} record={record} onEdit={this.reload} />
+    var records = this.props.records.map(function(record) {
+      return <Record key={record.rec_id.val()} record={record} />
     }.bind(this));
+
+    var body;
+    if(records.length === 0) {
+      body = (
+        <tbody>
+          <tr>
+            <td colspan="5">Loading...</td>
+          </tr>
+        </tbody>
+      );
+    }
+    else {
+      body = (
+        <tbody>
+          {records}
+          <RecordCreate domain={this.props.domain} />
+        </tbody>
+      );
+    }
     return (
       <div id="records">
         <table className="table">
@@ -201,10 +201,7 @@ var RecordList = React.createClass({
               <th className="actions">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            <RecordCreate domain={this.props.domain} onEdit={this.reload} />
-            {records}
-          </tbody>
+          {body}
         </table>
       </div>
     );

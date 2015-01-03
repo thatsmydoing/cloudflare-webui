@@ -1,4 +1,4 @@
-var cloudflare = require('./cloudflare');
+var DomainStore = require('./stores').Domains;
 var React = require('react');
 var ReactMiniRouter = require('react-mini-router');
 
@@ -27,12 +27,19 @@ var App = React.createClass({
           <li role="presentation" className={settings ? 'active' : ''}><a href={'/'+domain+'/settings'}>Settings</a></li>
         </ul>
       );
-      if(settings) {
-        content.push(<Settings key="settings" domain={domain} />);
+
+      var store = DomainStore.find(domain);
+      if(store) {
+        if(settings) {
+          DomainStore.loadSettings(domain);
+          content.push(<Settings key="settings" domain={domain} settings={store.settings} />);
+        }
+        else {
+          DomainStore.loadRecords(domain);
+          content.push(<RecordList key="records" domain={domain} records={store.records} />);
+        }
       }
-      else {
-        content.push(<RecordList key="records" domain={domain} />);
-      }
+
     }
     else {
       title = "CloudFlare WebUI";
@@ -42,7 +49,7 @@ var App = React.createClass({
     return (
       <div className="row">
         <div id="domains" className="col-md-3">
-          <DomainList currentDomain={domain} />
+          <DomainList currentDomain={domain} domains={this.props.domains} />
         </div>
         <div className="col-md-9">
           <h1>{title}</h1>

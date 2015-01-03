@@ -1,11 +1,11 @@
-var cloudflare = require('../cloudflare');
+var DomainStore = require('../stores').Domains;
 var React = require('react');
 
 var DevModeToggle = React.createClass({
   render: function() {
     if(this.props.devMode > 0) {
       var date = new Date(this.props.devMode*1000);
-      var dateString = date.getFullYear()+'/'+(1+date.getMonth())+'/'+date.getDay()+' '+date.getHours()+':'+date.getMinutes();
+      var dateString = date.getFullYear()+'/'+(1+date.getMonth())+'/'+date.getDate()+' '+date.getHours()+':'+date.getMinutes();
       return (
         <div>
           <button className='btn btn-success' onClick={this.props.onClick}>On</button>
@@ -27,7 +27,7 @@ var PurgeButton = React.createClass({
     var reset = function() {
       this.setState({purging: false});
     }.bind(this);
-    cloudflare.purge_cache(this.props.domain).then(function(data) {
+    DomainStore.purgeCache(this.props.domain).then(function(data) {
       var timeout = data.attributes.cooldown;
       setTimeout(reset, timeout*1000);
     });
@@ -42,27 +42,20 @@ var PurgeButton = React.createClass({
   }
 });
 var Settings = React.createClass({
-  getInitialState: function() {
-    return {settings: {}};
-  },
-  componentDidMount: function() {
-    this.reload();
-  },
-  reload: function() {
-    return cloudflare.settings(this.props.domain).then(function(data) {
-      this.setState({settings: data.response.result.objs[0]});
-    }.bind(this));
-  },
   toggleDevMode: function() {
-    cloudflare.set_devmode(this.props.domain, this.state.settings.dev_mode == 0).then(this.reload);
+    DomainStore.setDevelopmentMode(this.props.domain, this.props.settings.dev_mode.val() == 0);
   },
   render: function() {
+    if(!this.props.settings.val()) {
+      return <div className="alert alert-info">Loading...</div>
+    }
+
     return (
       <div>
         <table className="table">
           <tr>
             <td>Development Mode</td>
-            <td><DevModeToggle devMode={this.state.settings.dev_mode} onClick={this.toggleDevMode} /></td>
+            <td><DevModeToggle devMode={this.props.settings.dev_mode.val()} onClick={this.toggleDevMode} /></td>
           </tr>
           <tr>
             <td>Purge Cache</td>
