@@ -23,7 +23,7 @@ var RecordCreate = React.createClass({
   getInitialState: function() {
     return {saving: false};
   },
-  types: ['A', 'AAAA', 'CNAME'],
+  types: ['A', 'AAAA', 'CNAME', 'LOC', 'NS', 'SPF', 'TXT'],
   finishSave: function(promise) {
     promise.then(function() {
       this.setState({saving: false});
