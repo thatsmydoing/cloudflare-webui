@@ -116,6 +116,7 @@ var Record = React.createClass({
   render: function() {
     var record = this.props.record;
     var className = this.state.saving ? 'saving' : '';
+    var editDisabled = ['MX', 'SRV'].indexOf(record.type.val()) >= 0;
     if(this.state.state === 'edit') {
       return (
         <tr className={className}>
@@ -154,7 +155,7 @@ var Record = React.createClass({
           <td className="value">{record.display_content.val()}</td>
           <td><CloudActive record={record} onClick={this.toggleProxy} /></td>
           <td className="actions">
-            <button className="btn btn-primary" onClick={this.setEditing}>Edit</button>
+            <button className="btn btn-primary" disabled={editDisabled} onClick={this.setEditing}>Edit</button>
             <span> </span>
             <button className="btn btn-danger" onClick={this.setDeleting}>Delete</button>
           </td>
