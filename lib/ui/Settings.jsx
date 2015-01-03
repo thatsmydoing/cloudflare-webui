@@ -1,5 +1,6 @@
 var DomainStore = require('../stores').Domains;
 var React = require('react');
+var dateToString = require('../util').dateToString;
 
 var DevModeToggle = React.createClass({
   getInitialState: function() {
@@ -18,11 +19,10 @@ var DevModeToggle = React.createClass({
     }
     else if(this.props.devMode > 0) {
       var date = new Date(this.props.devMode*1000);
-      var dateString = date.getFullYear()+'/'+(1+date.getMonth())+'/'+date.getDate()+' '+date.getHours()+':'+date.getMinutes();
       return (
         <div>
           <button className='btn btn-success' onClick={this.toggleDevMode}>On</button>
-          <span> Active until {dateString}</span>
+          <span> Active until {dateToString(date)}</span>
         </div>
       );
     }
