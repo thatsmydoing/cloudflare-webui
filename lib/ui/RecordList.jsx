@@ -70,6 +70,9 @@ var Record = React.createClass({
   getInitialState: function() {
     return {state: 'view', saving: false};
   },
+  componentWillReceiveProps: function() {
+    this.setState({state: 'view', saving: false});
+  },
   setDeleting: function() {
     this.setState({state: 'delete'});
   },
@@ -79,15 +82,10 @@ var Record = React.createClass({
   cancelEdit: function() {
     this.setState({state: 'view'});
   },
-  finishSave: function(promise) {
-    promise.then(function() {
-      this.setState({state: 'view', saving: false});
-    }.bind(this));
-  },
   commitDelete: function() {
     this.setState({saving: true});
     var record = this.props.record;
-    this.finishSave(DomainStore.remove(record.zone_name.val(), record.rec_id.val()));
+    DomainStore.remove(record.zone_name.val(), record.rec_id.val());
   },
   commitEdit: function() {
     this.setState({saving: true});
@@ -101,7 +99,7 @@ var Record = React.createClass({
     if(record.service_mode.val()) {
       newRecord.service_mode = record.service_mode.val();
     }
-    this.finishSave(DomainStore.edit(record.zone_name.val(), newRecord));
+    DomainStore.edit(record.zone_name.val(), newRecord);
   },
   toggleProxy: function() {
     this.setState({saving: true});
@@ -113,7 +111,7 @@ var Record = React.createClass({
       content: record.content.val(),
       service_mode: record.service_mode.val() === "1" ? "0" : "1"
     };
-    this.finishSave(DomainStore.edit(record.zone_name.val(), newRecord));
+    DomainStore.edit(record.zone_name.val(), newRecord);
   },
   render: function() {
     var record = this.props.record;
