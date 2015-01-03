@@ -176,7 +176,7 @@ var RecordList = React.createClass({
       body = (
         <tbody>
           <tr>
-            <td colspan="5">Loading...</td>
+            <td colSpan="5">Loading...</td>
           </tr>
         </tbody>
       );
