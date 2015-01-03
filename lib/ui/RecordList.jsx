@@ -40,9 +40,10 @@ var RecordCreate = React.createClass({
     var newRecord = {
       type: this.refs.type.getDOMNode().value,
       name: this.refs.name.getDOMNode().value.trim(),
-      content: this.refs.value.getDOMNode().value.trim()
+      content: this.refs.value.getDOMNode().value.trim(),
+      ttl: 1
     };
-    this.finishSave(DomainStore.add(this.props.domain, newRecord));
+    this.finishSave(DomainStore.recordAdd(this.props.domain, newRecord));
   },
   render: function() {
     var className = this.state.saving ? 'saving' : '';
@@ -85,7 +86,7 @@ var Record = React.createClass({
   commitDelete: function() {
     this.setState({saving: true});
     var record = this.props.record;
-    DomainStore.remove(record.zone_name.val(), record.rec_id.val());
+    DomainStore.recordDelete(record.zone_name.val(), record.rec_id.val());
   },
   commitEdit: function() {
     this.setState({saving: true});
@@ -94,12 +95,13 @@ var Record = React.createClass({
       id: record.rec_id.val(),
       type: record.type.val(),
       name: this.refs.name.getDOMNode().value.trim(),
-      content: this.refs.value.getDOMNode().value.trim()
+      content: this.refs.value.getDOMNode().value.trim(),
+      ttl: 1
     };
     if(record.service_mode.val()) {
       newRecord.service_mode = record.service_mode.val();
     }
-    DomainStore.edit(record.zone_name.val(), newRecord);
+    DomainStore.recordEdit(record.zone_name.val(), newRecord);
   },
   toggleProxy: function() {
     this.setState({saving: true});
@@ -109,9 +111,10 @@ var Record = React.createClass({
       type: record.type.val(),
       name: record.name.val(),
       content: record.content.val(),
-      service_mode: record.service_mode.val() === "1" ? "0" : "1"
+      service_mode: record.service_mode.val() === "1" ? "0" : "1",
+      ttl: 1
     };
-    DomainStore.edit(record.zone_name.val(), newRecord);
+    DomainStore.recordEdit(record.zone_name.val(), newRecord);
   },
   render: function() {
     var record = this.props.record;
