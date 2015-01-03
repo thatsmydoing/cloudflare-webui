@@ -2,19 +2,32 @@ var DomainStore = require('../stores').Domains;
 var React = require('react');
 
 var DevModeToggle = React.createClass({
+  getInitialState: function() {
+    return {toggling: false};
+  },
+  componentWillReceiveProps: function() {
+    this.setState({toggling: false});
+  },
+  toggleDevMode: function() {
+    this.setState({toggling: true});
+    DomainStore.setDevelopmentMode(this.props.domain, this.props.devMode == 0);
+  },
   render: function() {
-    if(this.props.devMode > 0) {
+    if(this.state.toggling) {
+      return <button className="btn btn-warning" disabled>{this.props.devMode > 0 ? 'Disabling...' : 'Enabling...'}</button>
+    }
+    else if(this.props.devMode > 0) {
       var date = new Date(this.props.devMode*1000);
       var dateString = date.getFullYear()+'/'+(1+date.getMonth())+'/'+date.getDate()+' '+date.getHours()+':'+date.getMinutes();
       return (
         <div>
-          <button className='btn btn-success' onClick={this.props.onClick}>On</button>
+          <button className='btn btn-success' onClick={this.toggleDevMode}>On</button>
           <span> Active until {dateString}</span>
         </div>
       );
     }
     else {
-      return <button className='btn btn-default' onClick={this.props.onClick}>Off</button>
+      return <button className='btn btn-default' onClick={this.toggleDevMode}>Off</button>
     }
   }
 });
@@ -42,9 +55,6 @@ var PurgeButton = React.createClass({
   }
 });
 var Settings = React.createClass({
-  toggleDevMode: function() {
-    DomainStore.setDevelopmentMode(this.props.domain, this.props.settings.dev_mode.val() == 0);
-  },
   render: function() {
     if(!this.props.settings.val()) {
       return <div className="alert alert-info">Loading...</div>
@@ -55,7 +65,7 @@ var Settings = React.createClass({
         <table className="table">
           <tr>
             <td>Development Mode</td>
-            <td><DevModeToggle devMode={this.props.settings.dev_mode.val()} onClick={this.toggleDevMode} /></td>
+            <td><DevModeToggle domain={this.props.domain} devMode={this.props.settings.dev_mode.val()} /></td>
           </tr>
           <tr>
             <td>Purge Cache</td>
