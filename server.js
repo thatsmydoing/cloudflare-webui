@@ -12,6 +12,7 @@ var app = connect();
 var serve = serveStatic('.', {'index': []});
 var serveIndex = function(req, res, next) {
     if(isProd) {
+        req.url = '/index.html';
         serve(req, res, next);
     }
     else {
