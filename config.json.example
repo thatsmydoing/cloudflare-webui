@@ -1,0 +1,8 @@
+{
+    "email": "<user email>",
+    "token": "<user token>",
+    "whitelist": [
+        "example.com"
+    ]
+}
+
