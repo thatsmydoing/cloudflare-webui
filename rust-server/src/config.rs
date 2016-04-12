@@ -5,6 +5,7 @@ use std::io::prelude::*;
 
 #[derive(RustcDecodable, Debug)]
 pub struct Config {
+    pub port: Option<u16>,
     pub email: String,
     pub token: String,
     pub whitelist: Vec<String>

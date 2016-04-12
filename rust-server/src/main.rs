@@ -10,8 +10,11 @@ use hyper::Server;
 fn main() {
     let config_path = env::args().nth(1).unwrap_or("./config.json".to_string());
     let cfg = config::load(&config_path);
+    let port = cfg.port.unwrap_or(8000);
     let site = handler::new(cfg);
 
-    Server::http("127.0.0.1:8000").unwrap()
+    let listen = format!("127.0.0.1:{}", port);
+    println!("Listening on {}", listen);
+    Server::http(listen.as_ref() as &str).unwrap()
         .handle(site).unwrap();
 }

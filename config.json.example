@@ -1,4 +1,5 @@
 {
+    "port": 8000,
     "email": "<user email>",
     "token": "<user token>",
     "whitelist": [
