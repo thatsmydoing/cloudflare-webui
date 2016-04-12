@@ -111,6 +111,9 @@ impl Handler for SiteHandler {
                         res.send(b"Unauthorized").unwrap();
                     }
                 },
+                (&Get, _) => {
+                    res.send(INDEX_HTML.as_bytes()).unwrap();
+                },
                 _ => {
                     *res.status_mut() = NotFound;
                     res.send(b"Not Found").unwrap();
