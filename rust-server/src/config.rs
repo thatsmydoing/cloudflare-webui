@@ -2,6 +2,7 @@ use rustc_serialize::json;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::Error;
 
 #[derive(RustcDecodable, Debug)]
 pub struct Config {
@@ -11,9 +12,20 @@ pub struct Config {
     pub whitelist: Vec<String>
 }
 
-pub fn load(path: &str) -> Config {
-    let mut text = String::new();
-    let mut f = File::open(path).unwrap();
-    f.read_to_string(&mut text).ok().expect("Failed to load config");
-    json::decode(&text).unwrap()
+fn stringify(err: Error) -> String {
+    format!("{}", err)
+}
+
+pub fn load(path: &str) -> Result<Config, String> {
+    File::open(path)
+        .map_err(stringify)
+        .and_then(|mut f| {
+            let mut text = String::new();
+            f.read_to_string(&mut text)
+                .map_err(stringify)
+                .map(|_| text)
+        })
+        .and_then(|text| {
+            json::decode(&text).map_err(|e| format!("{}", e))
+        })
 }
