@@ -1,4 +1,5 @@
 use config::Config;
+use mime::Mime;
 use std::io;
 use std::io::Read;
 use hyper::{Get, Post};
@@ -46,18 +47,21 @@ fn get_param<'a>(params: &'a Vec<(String, String)>, key: &str) -> &'a str {
     params.into_iter().find(|tuple| tuple.0 == key).map(|tuple| tuple.1.as_ref()).unwrap_or("")
 }
 
+fn serve(mut res: Response, content: &str, mime: Mime) {
+    res.headers_mut().set(ContentType(mime));
+    res.send(content.as_bytes()).unwrap();
+}
+
 impl Handler for SiteHandler {
     fn handle(&self, mut req: Request, mut res: Response) {
         let mut text = String::new();
         req.read_to_string(&mut text).ok().expect("Failed to get request body");
         match req.uri {
             AbsolutePath(ref path) => match (&req.method, &path[..]) {
-                (&Get, "/") => {
-                    res.send(INDEX_HTML.as_bytes()).unwrap();
-                },
-                (&Get, "/assets/bundle.js") => {
-                    res.send(BUNDLE_JS.as_bytes()).unwrap();
-                },
+                (&Get, "/") =>
+                    serve(res, INDEX_HTML, mime!(Text/Html; Charset=Utf8)),
+                (&Get, "/assets/bundle.js") =>
+                    serve(res, BUNDLE_JS, mime!(Application/Javascript; Charset=Utf8)),
                 (&Post, "/api") => {
                     let mut params = form_urlencoded::parse(text.as_bytes());
                     params.push(("email".to_string(), self.cfg.email.clone()));
@@ -111,9 +115,8 @@ impl Handler for SiteHandler {
                         res.send(b"Unauthorized").unwrap();
                     }
                 },
-                (&Get, _) => {
-                    res.send(INDEX_HTML.as_bytes()).unwrap();
-                },
+                (&Get, _) =>
+                    serve(res, INDEX_HTML, mime!(Text/Html; Charset=Utf8)),
                 _ => {
                     *res.status_mut() = NotFound;
                     res.send(b"Not Found").unwrap();
