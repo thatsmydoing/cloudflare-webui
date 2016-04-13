@@ -99,7 +99,7 @@ impl Handler for SiteHandler {
                             zones.insert("count".to_string(), Json::U64(count as u64));
                         };
 
-                        res.headers_mut().set(ContentType::json());
+                        res.headers_mut().extend(proxy_res.headers.iter());
                         res.send(json::encode(&body).unwrap().as_bytes()).unwrap();
                     }
                     else if valid {
