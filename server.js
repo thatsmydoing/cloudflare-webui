@@ -7,6 +7,7 @@ var config = require('./config.json');
 
 var apiEndpoint = 'https://www.cloudflare.com/api_json.html';
 var isProd = config.isProd === undefined || config.isProd;
+var port = config.port || 8000;
 
 var app = connect();
 var serve = serveStatic('.', {'index': []});
@@ -82,4 +83,4 @@ if(!isProd) {
     })
     devServer.listen(8001);
 }
-app.listen(8000);
+app.listen(port);
