@@ -1,10 +1,11 @@
 [root]
 name = "cloudflare-webui"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "hyper 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -201,6 +202,11 @@ dependencies = [
 [[package]]
 name = "semver"
 version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "sha1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]

@@ -5,12 +5,13 @@ use std::io::Read;
 use hyper::{Get, Post};
 use hyper::Client;
 use hyper::client;
-use hyper::header::{ContentType, Headers};
+use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers};
 use hyper::server::{Handler, Request, Response};
-use hyper::status::StatusCode::{NotFound, Unauthorized};
+use hyper::status::StatusCode::{NotFound, NotModified, Unauthorized};
 use hyper::uri::RequestUri::AbsolutePath;
 use rustc_serialize::json;
 use rustc_serialize::json::Json;
+use sha1::Sha1;
 use url::form_urlencoded;
 
 const API_ENDPOINT: &'static str = "https://www.cloudflare.com/api_json.html";
@@ -18,9 +19,15 @@ const API_ENDPOINT: &'static str = "https://www.cloudflare.com/api_json.html";
 const INDEX_HTML: &'static str = include_str!("../../index.html");
 const BUNDLE_JS: &'static str = include_str!("../../assets/bundle.js");
 
+struct Etags {
+    index: EntityTag,
+    bundle: EntityTag
+}
+
 pub struct SiteHandler {
     cfg: Config,
-    client: Client
+    client: Client,
+    etags: Etags
 }
 
 impl SiteHandler {
@@ -36,10 +43,21 @@ impl SiteHandler {
     }
 }
 
+fn make_etag(source: &str) -> EntityTag {
+    let mut m = Sha1::new();
+    m.update(source.as_bytes());
+    let digest = m.digest().to_string();
+    EntityTag::new(false, digest)
+}
+
 pub fn new(cfg: Config) -> SiteHandler {
     SiteHandler {
         cfg: cfg,
-        client: Client::new()
+        client: Client::new(),
+        etags: Etags {
+            index: make_etag(INDEX_HTML),
+            bundle: make_etag(BUNDLE_JS)
+        }
     }
 }
 
@@ -47,9 +65,23 @@ fn get_param<'a>(params: &'a Vec<(String, String)>, key: &str) -> &'a str {
     params.into_iter().find(|tuple| tuple.0 == key).map(|tuple| tuple.1.as_ref()).unwrap_or("")
 }
 
-fn serve(mut res: Response, content: &str, mime: Mime) {
+fn serve(req: &Request, mut res: Response, content: &str, etag: &EntityTag, mime: Mime) {
+    let empty_vec = vec!();
+    let etags = req.headers.get::<IfNoneMatch>();
+    let etags: &Vec<EntityTag> = match etags {
+        Some(&IfNoneMatch::Items(ref items)) => items,
+        _ => &empty_vec
+    };
+    let is_cached = etags.iter().find(|&etag_b| etag.weak_eq(etag_b)).is_some();
+
     res.headers_mut().set(ContentType(mime));
-    res.send(content.as_bytes()).unwrap();
+    res.headers_mut().set(ETag(etag.to_owned()));
+    if is_cached {
+        *res.status_mut() = NotModified;
+    }
+    else {
+        res.send(content.as_bytes()).unwrap();
+    }
 }
 
 impl Handler for SiteHandler {
@@ -59,9 +91,9 @@ impl Handler for SiteHandler {
         match req.uri {
             AbsolutePath(ref path) => match (&req.method, &path[..]) {
                 (&Get, "/") =>
-                    serve(res, INDEX_HTML, mime!(Text/Html; Charset=Utf8)),
+                    serve(&req, res, INDEX_HTML, &self.etags.index, mime!(Text/Html; Charset=Utf8)),
                 (&Get, "/assets/bundle.js") =>
-                    serve(res, BUNDLE_JS, mime!(Application/Javascript; Charset=Utf8)),
+                    serve(&req, res, BUNDLE_JS, &self.etags.bundle, mime!(Application/Javascript; Charset=Utf8)),
                 (&Post, "/api") => {
                     let mut params = form_urlencoded::parse(text.as_bytes());
                     params.push(("email".to_string(), self.cfg.email.clone()));
@@ -116,7 +148,7 @@ impl Handler for SiteHandler {
                     }
                 },
                 (&Get, _) =>
-                    serve(res, INDEX_HTML, mime!(Text/Html; Charset=Utf8)),
+                    serve(&req, res, INDEX_HTML, &self.etags.index, mime!(Text/Html; Charset=Utf8)),
                 _ => {
                     *res.status_mut() = NotFound;
                     res.send(b"Not Found").unwrap();
