@@ -7,7 +7,7 @@ use hyper::Client;
 use hyper::client;
 use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers};
 use hyper::server::{Handler, Request, Response};
-use hyper::status::StatusCode::{NotFound, NotModified, Unauthorized};
+use hyper::status::StatusCode::{InternalServerError, NotFound, NotModified, Unauthorized};
 use hyper::uri::RequestUri::AbsolutePath;
 use rustc_serialize::json;
 use rustc_serialize::json::Json;
@@ -106,33 +106,40 @@ impl Handler for SiteHandler {
                     if a == "zone_load_multi" {
                         let form_data = form_urlencoded::serialize(&params);
                         let mut proxy_res = self.post(&form_data);
-                        let mut body = Json::from_reader(&mut proxy_res).unwrap();
-                        {
-                            let root = body.as_object_mut().unwrap();
-                            let response = root.get_mut("response")
-                                .unwrap()
-                                .as_object_mut()
-                                .unwrap();
-                            let zones = response.get_mut("zones")
-                                .unwrap()
-                                .as_object_mut()
-                                .unwrap();
-                            let count = {
-                                let objs = zones.get_mut("objs")
-                                    .unwrap()
-                                    .as_array_mut()
-                                    .unwrap();
-                                objs.retain(|zone| {
-                                    let zone_name = zone.find("zone_name").and_then(|name| name.as_string()).unwrap();
-                                    whitelist.into_iter().any(|domain| domain == zone_name)
-                                });
-                                objs.len()
-                            };
-                            zones.insert("count".to_string(), Json::U64(count as u64));
-                        };
+                        match Json::from_reader(&mut proxy_res) {
+                            Ok(mut body) => {
+                                // filter out non-whitelisted domains
+                                body.as_object_mut()
+                                    .and_then(|mut root| root.get_mut("response"))
+                                    .and_then(|mut obj| obj.as_object_mut())
+                                    .and_then(|mut resp| resp.get_mut("zones"))
+                                    .and_then(|mut obj| obj.as_object_mut())
+                                    .map(|mut zones| {
+                                        let count = {
+                                            let objs = zones.get_mut("objs")
+                                                .unwrap()
+                                                .as_array_mut()
+                                                .unwrap();
+                                            objs.retain(|zone| {
+                                                let zone_name = zone.find("zone_name").and_then(|name| name.as_string()).unwrap();
+                                                whitelist.into_iter().any(|domain| domain == zone_name)
+                                            });
+                                            objs.len()
+                                        };
+                                        zones.insert("count".to_string(), Json::U64(count as u64));
+                                    });
 
-                        res.headers_mut().extend(proxy_res.headers.iter());
-                        res.send(json::encode(&body).unwrap().as_bytes()).unwrap();
+                                res.headers_mut().extend(proxy_res.headers.iter());
+
+                                let json = json::encode(&body).unwrap();
+                                res.send(json.as_bytes()).unwrap();
+                            },
+                            Err(error) => {
+                                println!("Error: {}", error);
+                                *res.status_mut() = InternalServerError;
+                                res.send(b"Unexpected response from CloudFlare").unwrap();
+                            }
+                        };
                     }
                     else if valid {
                         let form_data = form_urlencoded::serialize(&params);
