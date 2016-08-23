@@ -5,7 +5,7 @@ use std::io::Read;
 use hyper::{Get, Post};
 use hyper::Client;
 use hyper::client;
-use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers, TransferEncoding};
+use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers};
 use hyper::server::{Handler, Request, Response};
 use hyper::status::StatusCode::{InternalServerError, NotFound, NotModified, Unauthorized};
 use hyper::uri::RequestUri::AbsolutePath;
@@ -34,7 +34,6 @@ impl SiteHandler {
     fn post(&self, body: &str) -> client::Response {
         let mut headers = Headers::new();
         headers.set(ContentType::form_url_encoded());
-        headers.remove::<TransferEncoding>();
         self.client
             .post(API_ENDPOINT)
             .headers(headers)
@@ -130,10 +129,8 @@ impl Handler for SiteHandler {
                                         zones.insert("count".to_string(), Json::U64(count as u64));
                                     });
 
-                                res.headers_mut().extend(proxy_res.headers.iter());
-                                res.headers_mut().remove::<TransferEncoding>();
-
                                 let json = json::encode(&body).unwrap();
+                                res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
                                 res.send(json.as_bytes()).unwrap();
                             },
                             Err(error) => {
@@ -146,8 +143,7 @@ impl Handler for SiteHandler {
                     else if valid {
                         let form_data = form_urlencoded::serialize(&params);
                         let mut proxy_res = self.post(&form_data);
-                        res.headers_mut().extend(proxy_res.headers.iter());
-                        res.headers_mut().remove::<TransferEncoding>();
+                        res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
                         let mut res = res.start().unwrap();
                         io::copy(&mut proxy_res, &mut res).ok().expect("Failed to proxy");
                         res.end().unwrap();
