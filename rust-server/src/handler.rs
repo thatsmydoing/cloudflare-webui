@@ -1,20 +1,21 @@
 use config::Config;
 use mime::Mime;
 use std::io;
-use std::io::Read;
-use hyper::{Get, Post};
+use std::collections::HashSet;
+use hyper::Get;
 use hyper::Client;
 use hyper::client;
-use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers, TransferEncoding};
+use hyper::header::{ContentType, ETag, EntityTag, IfNoneMatch, Headers};
+use hyper::method::Method;
 use hyper::server::{Handler, Request, Response};
 use hyper::status::StatusCode::{InternalServerError, NotFound, NotModified, Unauthorized};
 use hyper::uri::RequestUri::AbsolutePath;
+use hyper::Url;
 use rustc_serialize::json;
 use rustc_serialize::json::Json;
 use sha1::Sha1;
-use url::form_urlencoded;
 
-const API_ENDPOINT: &'static str = "https://www.cloudflare.com/api_json.html";
+const API_ENDPOINT: &'static str = "https://api.cloudflare.com/client/v4";
 
 const INDEX_HTML: &'static str = include_str!("../../index.html");
 const BUNDLE_JS: &'static str = include_str!("../../assets/bundle.js");
@@ -27,20 +28,41 @@ struct Etags {
 pub struct SiteHandler {
     cfg: Config,
     client: Client,
-    etags: Etags
+    etags: Etags,
+    whitelist: HashSet<String>
 }
 
 impl SiteHandler {
-    fn post(&self, body: &str) -> client::Response {
+    fn make_headers(&self) -> Headers {
         let mut headers = Headers::new();
-        headers.set(ContentType::form_url_encoded());
-        headers.remove::<TransferEncoding>();
-        self.client
-            .post(API_ENDPOINT)
-            .headers(headers)
-            .body(body)
-            .send()
-            .unwrap()
+        headers.set_raw("x-auth-email", vec![self.cfg.email.as_bytes().to_vec()]);
+        headers.set_raw("x-auth-key", vec![self.cfg.token.as_bytes().to_vec()]);
+        headers.set(ContentType::json());
+        headers
+    }
+
+    fn request(&self, method: Method, url: &str, mut body: Option<Request>) -> client::Response {
+        let url = API_ENDPOINT.to_owned() + url;
+        let mut url = Url::parse(&url).unwrap();
+        if method == Get {
+            url.query_pairs_mut().append_pair("per_page", "999");
+        }
+        let request = self.client.request(method, url).headers(self.make_headers());
+        let request = match body.as_mut() {
+            Some(body) => request.body(body),
+            None => request
+        };
+        request.send().unwrap()
+    }
+
+    fn is_valid(&self, path: &str) -> bool {
+        let zone: String = path.chars()
+            .skip(1)
+            .skip_while(|c| *c != '/')
+            .skip(1)
+            .take_while(|c| *c != '/')
+            .collect();
+        self.whitelist.contains(&zone)
     }
 }
 
@@ -52,18 +74,37 @@ fn make_etag(source: &str) -> EntityTag {
 }
 
 pub fn new(cfg: Config) -> SiteHandler {
-    SiteHandler {
+    let mut handler = SiteHandler {
         cfg: cfg,
         client: Client::new(),
         etags: Etags {
             index: make_etag(INDEX_HTML),
             bundle: make_etag(BUNDLE_JS)
+        },
+        whitelist: HashSet::new()
+    };
+    let mut response = handler.request(Get, "/zones", None);
+    {
+        let domain_whitelist = &handler.cfg.whitelist;
+        let mut whitelist: HashSet<String> = HashSet::new();
+        match Json::from_reader(&mut response) {
+            Ok(body) => {
+                let zones = body.find("result").and_then(|result| result.as_array()).unwrap();
+                for zone in zones {
+                    let id = zone.find("id").and_then(|id| id.as_string()).unwrap();
+                    let name = zone.find("name").and_then(Json::as_string).unwrap();
+                    if domain_whitelist.into_iter().any(|domain| domain == name) {
+                        whitelist.insert(id.to_owned());
+                    }
+                }
+            },
+            Err(error) => {
+                println!("Error: {}", error);
+            }
         }
+        handler.whitelist = whitelist;
     }
-}
-
-fn get_param<'a>(params: &'a Vec<(String, String)>, key: &str) -> &'a str {
-    params.into_iter().find(|tuple| tuple.0 == key).map(|tuple| tuple.1.as_ref()).unwrap_or("")
+    handler
 }
 
 fn serve(req: &Request, mut res: Response, content: &str, etag: &EntityTag, mime: Mime) {
@@ -86,54 +127,37 @@ fn serve(req: &Request, mut res: Response, content: &str, etag: &EntityTag, mime
 }
 
 impl Handler for SiteHandler {
-    fn handle(&self, mut req: Request, mut res: Response) {
-        let mut text = String::new();
-        req.read_to_string(&mut text).ok().expect("Failed to get request body");
-        match req.uri {
-            AbsolutePath(ref path) => match (&req.method, &path[..]) {
+    fn handle(&self, req: Request, mut res: Response) {
+        let uri = req.uri.clone();
+        let method = req.method.clone();
+        match uri {
+            AbsolutePath(ref path) => match (&method, &path[..]) {
                 (&Get, "/") =>
                     serve(&req, res, INDEX_HTML, &self.etags.index, mime!(Text/Html; Charset=Utf8)),
                 (&Get, "/assets/bundle.js") =>
                     serve(&req, res, BUNDLE_JS, &self.etags.bundle, mime!(Application/Javascript; Charset=Utf8)),
-                (&Post, "/api") => {
-                    let mut params = form_urlencoded::parse(text.as_bytes());
-                    params.push(("email".to_string(), self.cfg.email.clone()));
-                    params.push(("tkn".to_string(), self.cfg.token.clone()));
+                (method, url) if path.starts_with("/api") => {
+                    let method = method.clone();
+                    let path: String = url.chars().skip(4).collect();
 
-                    let a = get_param(&params, "a");
-                    let z = get_param(&params, "z");
-                    let whitelist = &self.cfg.whitelist;
-                    let valid = whitelist.into_iter().any(|domain| domain == z);
-                    if a == "zone_load_multi" {
-                        let form_data = form_urlencoded::serialize(&params);
-                        let mut proxy_res = self.post(&form_data);
+                    let whitelist = &self.whitelist;
+                    if path == "/zones" {
+                        let mut proxy_res = self.request(method, &path, None);
                         match Json::from_reader(&mut proxy_res) {
                             Ok(mut body) => {
                                 // filter out non-whitelisted domains
                                 body.as_object_mut()
-                                    .and_then(|mut root| root.get_mut("response"))
-                                    .and_then(|mut obj| obj.as_object_mut())
-                                    .and_then(|mut resp| resp.get_mut("zones"))
-                                    .and_then(|mut obj| obj.as_object_mut())
+                                    .and_then(|mut root| root.get_mut("result"))
+                                    .and_then(|mut result| result.as_array_mut())
                                     .map(|mut zones| {
-                                        let count = {
-                                            let objs = zones.get_mut("objs")
-                                                .unwrap()
-                                                .as_array_mut()
-                                                .unwrap();
-                                            objs.retain(|zone| {
-                                                let zone_name = zone.find("zone_name").and_then(|name| name.as_string()).unwrap();
-                                                whitelist.into_iter().any(|domain| domain == zone_name)
-                                            });
-                                            objs.len()
-                                        };
-                                        zones.insert("count".to_string(), Json::U64(count as u64));
+                                        zones.retain(|zone| {
+                                            let id = zone.find("id").and_then(|id| id.as_string()).unwrap();
+                                            whitelist.contains(id)
+                                        });
                                     });
 
-                                res.headers_mut().extend(proxy_res.headers.iter());
-                                res.headers_mut().remove::<TransferEncoding>();
-
                                 let json = json::encode(&body).unwrap();
+                                res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
                                 res.send(json.as_bytes()).unwrap();
                             },
                             Err(error) => {
@@ -143,11 +167,9 @@ impl Handler for SiteHandler {
                             }
                         };
                     }
-                    else if valid {
-                        let form_data = form_urlencoded::serialize(&params);
-                        let mut proxy_res = self.post(&form_data);
-                        res.headers_mut().extend(proxy_res.headers.iter());
-                        res.headers_mut().remove::<TransferEncoding>();
+                    else if self.is_valid(&path) {
+                        let mut proxy_res = self.request(method, &path, Some(req));
+                        res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
                         let mut res = res.start().unwrap();
                         io::copy(&mut proxy_res, &mut res).ok().expect("Failed to proxy");
                         res.end().unwrap();

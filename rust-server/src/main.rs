@@ -3,7 +3,6 @@ extern crate mime;
 extern crate hyper;
 extern crate rustc_serialize;
 extern crate sha1;
-extern crate url;
 mod config;
 mod handler;
 
