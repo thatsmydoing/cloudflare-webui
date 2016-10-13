@@ -5,9 +5,10 @@ var serveStatic = require('serve-static');
 var bodyParser = require('body-parser');
 var config = require('./config.json');
 
-var apiEndpoint = 'https://www.cloudflare.com/api_json.html';
+var apiEndpoint = 'https://api.cloudflare.com/client/v4';
 var isProd = config.isProd === undefined || config.isProd;
 var port = config.port || 8000;
+var identifierWhitelist = null;
 
 var app = connect();
 var serve = serveStatic('.', {'index': []});
@@ -23,31 +24,55 @@ var serveIndex = function(req, res, next) {
     }
 };
 
-app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.json());
 app.use(function(req, res, next) {
-    if(req.url === '/api') {
-        req.body.email = config.email;
-        req.body.tkn = config.token;
+    if(req.url.startsWith('/api')) {
+        var headers = {
+            'X-Auth-Email': config.email,
+            'X-Auth-Key': config.token
+        }
+
+        var path = req.url.substring(4);
 
         // filter out only zones in the whitelist
-        if(req.body.a === 'zone_load_multi') {
-            request.post({uri: apiEndpoint, form: req.body, json: true}, function(err, inc, body) {
-                var filtered = body.response.zones.objs.filter(function(zone) {
-                    return config.whitelist.indexOf(zone.zone_name) >= 0;
+        if(path === '/zones') {
+            request.get({uri: apiEndpoint+path, headers: headers, json: true}, function(err, inc, body) {
+                var filtered = body.result.filter(function(zone) {
+                    return config.whitelist.indexOf(zone.name) >= 0;
                 });
-                body.response.zones.objs = filtered;
-                body.response.zones.count = filtered.length;
+                // TODO prefetch entire zone list
+                if(identifierWhitelist === null) {
+                    identifierWhitelist = filtered.map(function(zone) {
+                        return zone.id;
+                    });
+                }
+                body.result = filtered;
+                body.result_info.count = filtered.length;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(body));
             });
         }
 
-        // allow any requests for zones in whitelist
-        else if(config.whitelist.indexOf(req.body.z) >= 0) {
-            request.post(apiEndpoint).form(req.body).pipe(res);
+        else if(path.startsWith('/zones')) {
+            // allow any requests for zones in whitelist
+            var identifier = path.replace(/^\/zones\/([0-9a-f]+).*$/, "$1");
+            if(identifierWhitelist.indexOf(identifier) >= 0) {
+                request({
+                    method: req.method,
+                    uri: apiEndpoint+path,
+                    headers: headers,
+                    qs: req.method == 'GET' ? {per_page: 999} : {},
+                    body: req.body,
+                    json: true
+                }).pipe(res);
+            }
+            else {
+                // deny otherwise
+                next();
+            }
         }
 
-        // deny otherwise
+        // deny other request paths for now
         else {
             next();
         }

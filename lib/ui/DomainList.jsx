@@ -5,7 +5,7 @@ var Domain = React.createClass({
     var className = this.props.active ? 'active' : '';
     return (
       <li role="presentation" className={className}>
-        <a href={'/'+this.props.data.zone_name.val()}>{this.props.data.zone_name.val()}</a>
+        <a href={'/'+this.props.data.name.val()}>{this.props.data.name.val()}</a>
       </li>
     );
   }
@@ -15,8 +15,8 @@ var DomainList = React.createClass({
   render: function() {
     var currDomain = this.props.currentDomain;
     var domains = this.props.domains.map(function(domain) {
-      var active = currDomain === domain.zone_name.val();
-      return <Domain key={domain.zone_id.val()} data={domain} active={active} />
+      var active = currDomain === domain.name.val();
+      return <Domain key={domain.id.val()} data={domain} active={active} />
     });
 
     return (

@@ -4,9 +4,8 @@ var React = require('react');
 var CloudActive = React.createClass({
   render: function() {
     var record = this.props.record;
-    var type = record.type.val();
-    if(type === 'A' || type === 'AAAA' || type === 'CNAME') {
-      var active = record.service_mode.val() === '1';
+    if(record.proxiable.val()) {
+      var active = record.proxied.val();
       if(active) {
         return <button className='btn btn-warning' onClick={this.props.onClick}>On</button>
       }
@@ -86,20 +85,20 @@ var Record = React.createClass({
   commitDelete: function() {
     this.setState({saving: true});
     var record = this.props.record;
-    DomainStore.recordDelete(record.zone_name.val(), record.rec_id.val());
+    DomainStore.recordDelete(record.zone_name.val(), record.id.val());
   },
   commitEdit: function() {
     this.setState({saving: true});
     var record = this.props.record;
     var newRecord = {
-      id: record.rec_id.val(),
+      id: record.id.val(),
       type: record.type.val(),
       name: this.refs.name.getDOMNode().value.trim(),
       content: this.refs.value.getDOMNode().value.trim(),
       ttl: 1
     };
-    if(record.service_mode.val()) {
-      newRecord.service_mode = record.service_mode.val();
+    if(record.proxied.val()) {
+      newRecord.proxied = record.proxied.val();
     }
     DomainStore.recordEdit(record.zone_name.val(), newRecord);
   },
@@ -107,11 +106,11 @@ var Record = React.createClass({
     this.setState({saving: true});
     var record = this.props.record;
     var newRecord = {
-      id: record.rec_id.val(),
+      id: record.id.val(),
       type: record.type.val(),
       name: record.name.val(),
       content: record.content.val(),
-      service_mode: record.service_mode.val() === "1" ? "0" : "1",
+      proxied: !record.proxied.val(),
       ttl: 1
     };
     DomainStore.recordEdit(record.zone_name.val(), newRecord);
@@ -120,12 +119,18 @@ var Record = React.createClass({
     var record = this.props.record;
     var className = this.state.saving ? 'saving' : '';
     var editDisabled = ['MX', 'SRV'].indexOf(record.type.val()) >= 0;
+    var displayName = record.name.val();
+    var zoneName = '.'+record.zone_name.val();
+    var limit = displayName.length - zoneName.length;
+    if(limit > 0 && displayName.substring(limit) === zoneName) {
+      displayName = displayName.substring(0, limit);
+    }
     if(this.state.state === 'edit') {
       return (
         <tr className={className}>
           <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
-          <td><input type="text" ref="name" defaultValue={record.display_name.val()} /></td>
-          <td><input type="text" ref="value" defaultValue={record.display_content.val()} /></td>
+          <td><input type="text" ref="name" defaultValue={displayName} /></td>
+          <td><input type="text" ref="value" defaultValue={record.content.val()} /></td>
           <td>
             <a onClick={this.cancelEdit}>Cancel</a>
           </td>
@@ -139,8 +144,8 @@ var Record = React.createClass({
       return (
         <tr className={className}>
           <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
-          <td><strong>{record.display_name.val()}</strong></td>
-          <td>{record.display_content.val()}</td>
+          <td><strong>{displayName}</strong></td>
+          <td>{record.content.val()}</td>
           <td>
             <a onClick={this.cancelEdit}>Cancel</a>
           </td>
@@ -154,8 +159,8 @@ var Record = React.createClass({
       return (
         <tr className={className}>
           <td className="record-type"><span className={record.type.val()}>{record.type.val()}</span></td>
-          <td><strong>{record.display_name.val()}</strong></td>
-          <td className="value">{record.display_content.val()}</td>
+          <td><strong>{displayName}</strong></td>
+          <td className="value">{record.content.val()}</td>
           <td><CloudActive record={record} onClick={this.toggleProxy} /></td>
           <td className="actions">
             <button className="btn btn-primary" disabled={editDisabled} onClick={this.setEditing}>Edit</button>
@@ -170,7 +175,7 @@ var Record = React.createClass({
 var RecordList = React.createClass({
   render: function() {
     var records = this.props.records.map(function(record) {
-      return <Record key={record.rec_id.val()} record={record} />
+      return <Record key={record.id.val()} record={record} />
     }.bind(this));
 
     var body;

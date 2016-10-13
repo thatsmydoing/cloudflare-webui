@@ -11,13 +11,13 @@ var DevModeToggle = React.createClass({
   },
   toggleDevMode: function() {
     this.setState({toggling: true});
-    DomainStore.setDevelopmentMode(this.props.domain, this.props.devMode == 0);
+    DomainStore.setDevelopmentMode(this.props.domain, this.props.devMode * 1000 <= Date.now());
   },
   render: function() {
     if(this.state.toggling) {
       return <button className="btn btn-warning" disabled>{this.props.devMode > 0 ? 'Disabling...' : 'Enabling...'}</button>
     }
-    else if(this.props.devMode > 0) {
+    else if(this.props.devMode * 1000 > Date.now()) {
       var date = new Date(this.props.devMode*1000);
       return (
         <div>
@@ -33,20 +33,26 @@ var DevModeToggle = React.createClass({
 });
 var PurgeButton = React.createClass({
   getInitialState: function() {
-    return {purging: false};
+    return {purging: false, failed: false};
   },
   purgeCache: function() {
+    var self = this;
     this.setState({purging: true});
     var reset = function() {
-      this.setState({purging: false});
+      this.setState({purging: false, failed: false});
     }.bind(this);
     DomainStore.purgeCache(this.props.domain).then(function(data) {
-      var timeout = data.attributes.cooldown;
-      setTimeout(reset, timeout*1000);
+      setTimeout(reset, 5*1000);
+    }, function(error) {
+      self.setState({failed: true});
+      setTimeout(reset, 10*1000);
     });
   },
   render: function() {
-    if(this.state.purging) {
+    if(this.state.failed) {
+      return <button className="btn btn-danger" disabled>Purge failed</button>
+    }
+    else if(this.state.purging) {
       return <button className="btn btn-warning" disabled>Purging...</button>
     }
     else {
@@ -65,7 +71,7 @@ var Settings = React.createClass({
         <table className="table">
           <tr>
             <td>Development Mode</td>
-            <td><DevModeToggle domain={this.props.domain} devMode={this.props.settings.dev_mode.val()} /></td>
+            <td><DevModeToggle domain={this.props.domain} devMode={this.props.settings.development_mode.val()} /></td>
           </tr>
           <tr>
             <td>Purge Cache</td>
