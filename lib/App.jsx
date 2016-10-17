@@ -31,7 +31,8 @@ var App = React.createClass({
       var store = DomainStore.find(domain);
       if(store) {
         if(settings) {
-          content.push(<Settings key="settings" domain={domain} settings={store} />);
+          DomainStore.loadSettings(domain);
+          content.push(<Settings key="settings" domain={domain} settings={store.settings} />);
         }
         else {
           DomainStore.loadRecords(domain);

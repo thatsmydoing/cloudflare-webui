@@ -11,15 +11,16 @@ var DevModeToggle = React.createClass({
   },
   toggleDevMode: function() {
     this.setState({toggling: true});
-    DomainStore.setDevelopmentMode(this.props.domain, this.props.devMode * 1000 <= Date.now());
+    var newValue = this.props.setting.timestamp * 1000 <= Date.now();
+    DomainStore.settingChange(this.props.domain, 'development_mode', newValue ? 'on' : 'off');
   },
   render: function() {
-    var active = this.props.devMode * 1000 > Date.now();
+    var active = this.props.setting.timestamp * 1000 > Date.now();
     if(this.state.toggling) {
       return <button className="btn btn-warning" disabled>{active ? 'Disabling...' : 'Enabling...'}</button>
     }
     else if(active) {
-      var date = new Date(this.props.devMode*1000);
+      var date = new Date(this.props.setting.timestamp*1000);
       return (
         <div>
           <button className='btn btn-success' onClick={this.toggleDevMode}>On</button>
@@ -32,6 +33,45 @@ var DevModeToggle = React.createClass({
     }
   }
 });
+
+var SSLToggle = React.createClass({
+  options: [
+    {value: 'off', name: 'Off'},
+    {value: 'flexible', name: 'Flexible'},
+    {value: 'full', name: 'Full'},
+    {value: 'full_strict', name: 'Full (Strict)'}
+  ],
+  getInitialState: function() {
+    return {toggling: false};
+  },
+  componentWillReceiveProps: function() {
+    this.setState({toggling: false});
+  },
+  setSSLMode: function(event) {
+    this.setState({toggling: true});
+    var unToggle = function() {
+      this.setState({toggling: false});
+    }.bind(this);
+    DomainStore.settingChange(this.props.domain, 'ssl', event.target.value).then(unToggle, unToggle);
+  },
+  render: function() {
+    var options = this.options.map(function(opt) {
+      return <option key={opt.value} value={opt.value}>{opt.name}</option>
+    });
+    var updating = <option>Updating...</option>
+    return (
+      <select
+        className="form-control ssl"
+        disabled={this.state.toggling}
+        onChange={this.setSSLMode}
+        value={this.props.setting.value}
+      >
+        {this.state.toggling ? updating : options}
+      </select>
+    )
+  }
+});
+
 var PurgeButton = React.createClass({
   getInitialState: function() {
     return {purging: false, failed: false};
@@ -62,22 +102,44 @@ var PurgeButton = React.createClass({
   }
 });
 var Settings = React.createClass({
+  settingMap: {
+    'development_mode': {
+      title: 'Development Mode',
+      component: DevModeToggle
+    },
+    'ssl': {
+      title: 'SSL Mode',
+      component: SSLToggle
+    }
+  },
   render: function() {
-    if(!this.props.settings.val()) {
+    if(this.props.settings.count() == 0) {
       return <div className="alert alert-info">Loading...</div>
     }
+
+    var settings = this.props.settings.map(function(setting) {
+      var opts = this.settingMap[setting.id.val()];
+      if(opts != undefined) {
+        return (
+          <tr key={setting.id.val()}>
+            <td>{opts.title}</td>
+            <td><opts.component domain={this.props.domain} setting={setting.val()} /></td>
+          </tr>
+        )
+      }
+      return null;
+    }.bind(this));
 
     return (
       <div>
         <table className="table">
-          <tr>
-            <td>Development Mode</td>
-            <td><DevModeToggle domain={this.props.domain} devMode={this.props.settings.development_mode.val()} /></td>
-          </tr>
-          <tr>
-            <td>Purge Cache</td>
-            <td><PurgeButton domain={this.props.domain} /></td>
-          </tr>
+          <tbody>
+            <tr>
+              <td>Purge Cache</td>
+              <td><PurgeButton domain={this.props.domain} /></td>
+            </tr>
+            {settings}
+          </tbody>
         </table>
       </div>
     );

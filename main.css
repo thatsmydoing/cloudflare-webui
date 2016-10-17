@@ -53,3 +53,7 @@
 .nav.nav-tabs {
 	margin-bottom: 10px;
 }
+
+.form-control.ssl {
+	width: 10em;
+}
