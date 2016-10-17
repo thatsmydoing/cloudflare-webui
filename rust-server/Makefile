@@ -1,7 +1,7 @@
 .phony: clean
 
 OPENSSL_VER ?= 1.0.2j
-WEBUI_VER ?= 0.1.3
+WEBUI_VER ?= 0.1.4
 
 BUILD_DIR = /tmp/openssl-static-build
 OPENSSL_PKG = openssl-$(OPENSSL_VER).tar.gz

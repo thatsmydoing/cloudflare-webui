@@ -1,7 +1,8 @@
 # Cloudflare WebUI
 
 This is a web frontend to the Cloudflare API. It mainly lets you manage DNS
-records, but it also lets you toggle development mode and purge the cache.
+records, but it also lets you toggle development mode and purge the cache as
+well as changing the SSL mode.
 
 This was mainly built to work around Cloudflare only having [multi-user support
 for enterprise][1]. It's a simple frontend for the DNS settings and a simple
