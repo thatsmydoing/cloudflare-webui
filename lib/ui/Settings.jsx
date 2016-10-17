@@ -14,10 +14,11 @@ var DevModeToggle = React.createClass({
     DomainStore.setDevelopmentMode(this.props.domain, this.props.devMode * 1000 <= Date.now());
   },
   render: function() {
+    var active = this.props.devMode * 1000 > Date.now();
     if(this.state.toggling) {
-      return <button className="btn btn-warning" disabled>{this.props.devMode > 0 ? 'Disabling...' : 'Enabling...'}</button>
+      return <button className="btn btn-warning" disabled>{active ? 'Disabling...' : 'Enabling...'}</button>
     }
-    else if(this.props.devMode * 1000 > Date.now()) {
+    else if(active) {
       var date = new Date(this.props.devMode*1000);
       return (
         <div>
