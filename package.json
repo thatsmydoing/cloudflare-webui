@@ -1,6 +1,6 @@
 {
   "name": "cloudflare-webui",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Rudimentary CloudFlare WebUI",
   "main": "server.js",
   "dependencies": {

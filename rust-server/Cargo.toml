@@ -1,6 +1,6 @@
 [package]
 name = "cloudflare-webui"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Thomas Dy <thatsmydoing@gmail.com>"]
 
 [dependencies]
