@@ -33,30 +33,37 @@ app.use(function(req, res, next) {
         }
 
         var path = req.url.substring(4);
+        var noWhitelist = config.whitelist == null;
 
         // filter out only zones in the whitelist
         if(path === '/zones') {
-            request.get({uri: apiEndpoint+path, headers: headers, json: true}, function(err, inc, body) {
-                var filtered = body.result.filter(function(zone) {
-                    return config.whitelist.indexOf(zone.name) >= 0;
-                });
-                // TODO prefetch entire zone list
-                if(identifierWhitelist === null) {
-                    identifierWhitelist = filtered.map(function(zone) {
-                        return zone.id;
+            var params = {uri: apiEndpoint+path, headers: headers, json: true};
+            if(noWhitelist) {
+                request.get(params).pipe(res);
+            }
+            else {
+                request.get(params, function(err, inc, body) {
+                    var filtered = body.result.filter(function(zone) {
+                        return config.whitelist.indexOf(zone.name) >= 0;
                     });
-                }
-                body.result = filtered;
-                body.result_info.count = filtered.length;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify(body));
-            });
+                    // TODO prefetch entire zone list
+                    if(identifierWhitelist === null) {
+                        identifierWhitelist = filtered.map(function(zone) {
+                            return zone.id;
+                        });
+                    }
+                    body.result = filtered;
+                    body.result_info.count = filtered.length;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify(body));
+                });
+            }
         }
 
         else if(path.startsWith('/zones')) {
             // allow any requests for zones in whitelist
             var identifier = path.replace(/^\/zones\/([0-9a-f]+).*$/, "$1");
-            if(identifierWhitelist.indexOf(identifier) >= 0) {
+            if(noWhitelist || identifierWhitelist.indexOf(identifier) >= 0) {
                 request({
                     method: req.method,
                     uri: apiEndpoint+path,

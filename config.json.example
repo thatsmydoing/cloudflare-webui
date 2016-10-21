@@ -3,7 +3,8 @@
     "email": "<user email>",
     "token": "<user token>",
     "whitelist": [
-        "example.com"
+        "example.com",
+        "this can be null to disable whitelist"
     ]
 }
 

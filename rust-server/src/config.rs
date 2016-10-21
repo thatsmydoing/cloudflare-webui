@@ -9,7 +9,7 @@ pub struct Config {
     pub port: Option<u16>,
     pub email: String,
     pub token: String,
-    pub whitelist: Vec<String>
+    pub whitelist: Option<Vec<String>>
 }
 
 fn stringify(err: Error) -> String {

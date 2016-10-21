@@ -55,14 +55,23 @@ impl SiteHandler {
         request.send().unwrap()
     }
 
+    fn has_whitelist(&self) -> bool {
+        self.cfg.whitelist.is_some()
+    }
+
     fn is_valid(&self, path: &str) -> bool {
-        let zone: String = path.chars()
-            .skip(1)
-            .skip_while(|c| *c != '/')
-            .skip(1)
-            .take_while(|c| *c != '/')
-            .collect();
-        self.whitelist.contains(&zone)
+        if self.has_whitelist() {
+            let zone: String = path.chars()
+                .skip(1)
+                .skip_while(|c| *c != '/')
+                .skip(1)
+                .take_while(|c| *c != '/')
+                .collect();
+            self.whitelist.contains(&zone)
+        }
+        else {
+            true
+        }
     }
 }
 
@@ -84,8 +93,7 @@ pub fn new(cfg: Config) -> SiteHandler {
         whitelist: HashSet::new()
     };
     let mut response = handler.request(Get, "/zones", None);
-    {
-        let domain_whitelist = &handler.cfg.whitelist;
+    if let Some(ref domain_whitelist) = handler.cfg.whitelist {
         let mut whitelist: HashSet<String> = HashSet::new();
         match Json::from_reader(&mut response) {
             Ok(body) => {
@@ -143,29 +151,37 @@ impl Handler for SiteHandler {
                     let whitelist = &self.whitelist;
                     if path == "/zones" {
                         let mut proxy_res = self.request(method, &path, None);
-                        match Json::from_reader(&mut proxy_res) {
-                            Ok(mut body) => {
-                                // filter out non-whitelisted domains
-                                body.as_object_mut()
-                                    .and_then(|mut root| root.get_mut("result"))
-                                    .and_then(|mut result| result.as_array_mut())
-                                    .map(|mut zones| {
-                                        zones.retain(|zone| {
-                                            let id = zone.find("id").and_then(|id| id.as_string()).unwrap();
-                                            whitelist.contains(id)
+                        if self.has_whitelist() {
+                            match Json::from_reader(&mut proxy_res) {
+                                Ok(mut body) => {
+                                    // filter out non-whitelisted domains
+                                    body.as_object_mut()
+                                        .and_then(|mut root| root.get_mut("result"))
+                                        .and_then(|mut result| result.as_array_mut())
+                                        .map(|mut zones| {
+                                            zones.retain(|zone| {
+                                                let id = zone.find("id").and_then(|id| id.as_string()).unwrap();
+                                                whitelist.contains(id)
+                                            });
                                         });
-                                    });
 
-                                let json = json::encode(&body).unwrap();
-                                res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
-                                res.send(json.as_bytes()).unwrap();
-                            },
-                            Err(error) => {
-                                println!("Error: {}", error);
-                                *res.status_mut() = InternalServerError;
-                                res.send(b"Unexpected response from CloudFlare").unwrap();
-                            }
-                        };
+                                    let json = json::encode(&body).unwrap();
+                                    res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
+                                    res.send(json.as_bytes()).unwrap();
+                                },
+                                Err(error) => {
+                                    println!("Error: {}", error);
+                                    *res.status_mut() = InternalServerError;
+                                    res.send(b"Unexpected response from CloudFlare").unwrap();
+                                }
+                            };
+                        }
+                        else {
+                            res.headers_mut().set(ContentType(mime!(Application/Json; Charset=Utf8)));
+                            let mut res = res.start().unwrap();
+                            io::copy(&mut proxy_res, &mut res).ok().expect("Failed to proxy");
+                            res.end().unwrap();
+                        }
                     }
                     else if self.is_valid(&path) {
                         let mut proxy_res = self.request(method, &path, Some(req));
