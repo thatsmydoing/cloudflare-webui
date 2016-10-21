@@ -5,34 +5,39 @@ var ReactMiniRouter = require('react-mini-router');
 var DomainList = require('./ui/DomainList');
 var RecordList = require('./ui/RecordList');
 var Settings = require('./ui/Settings');
+var Details = require('./ui/Details');
 
 var App = React.createClass({
   mixins: [ReactMiniRouter.RouterMixin],
   routes: {
     '/': 'home',
     '/:domain': 'domain',
-    '/:domain/settings': 'settings'
+    '/:domain/:tab': 'tab'
   },
   render: function() {
     return this.renderCurrentRoute();
   },
-  main: function(domain, settings) {
+  main: function(domain, tab) {
     var title;
     var content = [];
     if(domain) {
       title = domain;
       content.push(
         <ul key="nav" className="nav nav-tabs">
-          <li role="presentation" className={!settings ? 'active' : ''}><a href={'/'+domain}>DNS</a></li>
-          <li role="presentation" className={settings ? 'active' : ''}><a href={'/'+domain+'/settings'}>Settings</a></li>
+          <li role="presentation" className={tab == undefined ? 'active' : ''}><a href={'/'+domain}>DNS</a></li>
+          <li role="presentation" className={tab == 'settings' ? 'active' : ''}><a href={'/'+domain+'/settings'}>Settings</a></li>
+          <li role="presentation" className={tab == 'details' ? 'active' : ''}><a href={'/'+domain+'/details'}>Details</a></li>
         </ul>
       );
 
       var store = DomainStore.find(domain);
       if(store) {
-        if(settings) {
+        if(tab == 'settings') {
           DomainStore.loadSettings(domain);
           content.push(<Settings key="settings" domain={domain} settings={store.settings} />);
+        }
+        else if (tab == 'details') {
+          content.push(<Details key="details" domain={domain} details={store} />);
         }
         else {
           DomainStore.loadRecords(domain);
@@ -62,10 +67,10 @@ var App = React.createClass({
     return this.main();
   },
   domain: function(domain) {
-    return this.main(domain, false);
+    return this.main(domain);
   },
-  settings: function(domain) {
-    return this.main(domain, true);
+  tab: function(domain, tab) {
+    return this.main(domain, tab);
   }
 });
 
