@@ -40,7 +40,7 @@ var RecordCreate = React.createClass({
       type: this.refs.type.getDOMNode().value,
       name: this.refs.name.getDOMNode().value.trim(),
       content: this.refs.value.getDOMNode().value.trim(),
-      ttl: 1
+      ttl: 1 // automatic
     };
     this.finishSave(DomainStore.recordAdd(this.props.domain, newRecord));
   },
@@ -95,7 +95,7 @@ var Record = React.createClass({
       type: record.type.val(),
       name: this.refs.name.getDOMNode().value.trim(),
       content: this.refs.value.getDOMNode().value.trim(),
-      ttl: 1
+      ttl: 1 // automatic
     };
     if(record.proxied.val()) {
       newRecord.proxied = record.proxied.val();
