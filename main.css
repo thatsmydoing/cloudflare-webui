@@ -50,6 +50,12 @@
 #records .table tr.saving {
 	background: lightyellow;
 }
+#records .table td.multi-input label {
+	display: block;
+}
+#records .table td.multi-input div {
+	margin-bottom: 10px;
+}
 .nav.nav-tabs {
 	margin-bottom: 10px;
 }
