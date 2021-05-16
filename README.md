@@ -4,17 +4,20 @@ This is a web frontend to the Cloudflare API. It mainly lets you manage DNS
 records, but it also lets you toggle development mode and purge the cache as
 well as changing the SSL mode.
 
-This was mainly built to work around Cloudflare only having [multi-user support
-for enterprise][1]. It's a simple frontend for the DNS settings and a simple
-webserver that handles making the actual requests to Cloudflare.
+It's a simple frontend for the DNS settings and a simple webserver that handles
+making the actual requests to Cloudflare.
 
 ## Usage
 
-Download the [binary][2] (only Linux x86_64 for now). Get a copy of
-`config.json.example` and name it `config.json`. Place it in the same directory
-as the binary. Fill in your account details and the domains to be whitelisted.
-Afterwards, run the binary and you should be able to manage your domains at
-`localhost:8000`.
+Clone the repository, and copy `config.json.example` to `config.json`. Make an
+API token with:
+
+ * Zone - DNS - Edit
+ * Zone - Zone Settings - Edit
+ * Zone - Cache Purge - Purge
+
+and update `config.json` with it. Then run `npm install` then `npm start`. You
+should be able to manage your domains at `localhost:8000`.
 
 ## Security
 
@@ -23,10 +26,8 @@ authentication. It is meant to be run behind a reverse proxy such as nginx with
 basic auth, or behind something like
 [oauth2_proxy][3].
 
-The server never exposes your username and token to the clients, all requests to
-Cloudflare are made from the server. The server will also only allow API
-requests to domains specified in the whitelist. Domains not listed will be
-blocked even if your account owns it.
+The server never exposes your API token to the clients, all requests to
+Cloudflare are made from the server.
 
 [1]: https://support.cloudflare.com/hc/en-us/articles/200167846-How-do-I-add-additional-users-to-my-CloudFlare-account-
 [2]: https://github.com/thatsmydoing/cloudflare-webui/releases

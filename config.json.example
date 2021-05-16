@@ -1,10 +1,5 @@
 {
     "port": 8000,
-    "email": "<user email>",
-    "token": "<user API key (not API token)>",
-    "whitelist": [
-        "example.com",
-        "this can be null to disable whitelist"
-    ]
+    "token": "<API token>"
 }
 

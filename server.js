@@ -8,7 +8,6 @@ var config = require('./config.json');
 var apiEndpoint = 'https://api.cloudflare.com/client/v4';
 var isProd = config.isProd === undefined || config.isProd;
 var port = config.port || 8000;
-var identifierWhitelist = null;
 
 var app = connect();
 var serve = serveStatic('.', {'index': []});
@@ -28,55 +27,25 @@ app.use(bodyParser.json());
 app.use(function(req, res, next) {
     if(req.url.startsWith('/api')) {
         var headers = {
-            'X-Auth-Email': config.email,
-            'X-Auth-Key': config.token
+            'Authorization': `Bearer ${config.token}`
         }
 
         var path = req.url.substring(4);
-        var noWhitelist = config.whitelist == null;
 
-        // filter out only zones in the whitelist
         if(path === '/zones') {
             var params = {uri: apiEndpoint+path, headers: headers, json: true};
-            if(noWhitelist) {
-                request.get(params).pipe(res);
-            }
-            else {
-                request.get(params, function(err, inc, body) {
-                    var filtered = body.result.filter(function(zone) {
-                        return config.whitelist.indexOf(zone.name) >= 0;
-                    });
-                    // TODO prefetch entire zone list
-                    if(identifierWhitelist === null) {
-                        identifierWhitelist = filtered.map(function(zone) {
-                            return zone.id;
-                        });
-                    }
-                    body.result = filtered;
-                    body.result_info.count = filtered.length;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify(body));
-                });
-            }
+            request.get(params).pipe(res);
         }
 
         else if(path.startsWith('/zones')) {
-            // allow any requests for zones in whitelist
-            var identifier = path.replace(/^\/zones\/([0-9a-f]+).*$/, "$1");
-            if(noWhitelist || identifierWhitelist.indexOf(identifier) >= 0) {
-                request({
-                    method: req.method,
-                    uri: apiEndpoint+path,
-                    headers: headers,
-                    qs: req.method == 'GET' ? {per_page: 999} : {},
-                    body: req.body,
-                    json: true
-                }).pipe(res);
-            }
-            else {
-                // deny otherwise
-                next();
-            }
+            request({
+                method: req.method,
+                uri: apiEndpoint+path,
+                headers: headers,
+                qs: req.method == 'GET' ? {per_page: 999} : {},
+                body: req.body,
+                json: true
+            }).pipe(res);
         }
 
         // deny other request paths for now
