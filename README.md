@@ -1,3 +1,11 @@
+# UNMAINTAINED
+
+This project is no longer maintained. Cloudflare already supports [multi-user
+for any account][4] so there's not much need for this project anymore.
+
+If you still absolutely need this for the whitelist functionality, you can try
+the [api-token branch][5].
+
 # Cloudflare WebUI
 
 This is a web frontend to the Cloudflare API. It mainly lets you manage DNS
@@ -31,3 +39,5 @@ blocked even if your account owns it.
 [1]: https://support.cloudflare.com/hc/en-us/articles/200167846-How-do-I-add-additional-users-to-my-CloudFlare-account-
 [2]: https://github.com/thatsmydoing/cloudflare-webui/releases
 [3]: https://github.com/bitly/oauth2_proxy
+[4]: https://support.cloudflare.com/hc/en-us/articles/205065067-Setting-up-Multi-User-accounts-on-Cloudflare
+[5]: https://github.com/thatsmydoing/cloudflare-webui/tree/api-token
